@@ -103,5 +103,3 @@ Weaknesses and next steps should also be included.
 
 
 # References
-
-dsadsadasd
