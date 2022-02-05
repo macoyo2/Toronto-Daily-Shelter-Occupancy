@@ -5,4 +5,4 @@ This repo contains R scripts and an RMarkdown file used to analyze 2020 daily sh
 Contents
   * R scrips can be found in /scripts
   * R markdown, references, and the final pdf can be found in /outputs/paper
-  * Csv file of raw data and literatures can be found in /inputs
+  * CSV file of raw data and literatures can be found in /inputs
