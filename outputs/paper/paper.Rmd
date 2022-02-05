@@ -1,12 +1,10 @@
 ---
-title: "My title"
-subtitle: "My subtitle if needed"
+title: "Shelter System in Toronto Requires Improvement for People's Needs during COVID-19"
 author: 
-  - First author
-  - Another author
-thanks: "Code and data are available at: LINK."
+  - Yitian Li
+thanks: "Code and data are available at: https://github.com/macoyo2/Toronto-Daily-Shelter-Occupancy."
 date: "`r format(Sys.time(), '%d %B %Y')`"
-abstract: "First sentence. Second sentence. Third sentence. Fourth sentence."
+abstract: "This report aims to apply with current affairs and analyze the trend of occupancy in the Toronto shelter system through 2020. Additional focus will be put on five different sectors offered by shelters to discuss more insights about the sectors' distribution. Further literature reviews mainly concentrate on the COVID-19 impact on the Toronto shelter system. While the analysis can lead us to understand more about the conditions of occupancy in shelters, the timeline of the dataset is limited to one year, thus a longer-period analysis is recommended to assist in delivering more comprehensive suggestions about the Toronto shelter system."
 output:
   bookdown::pdf_document2
 toc: FALSE
@@ -15,94 +13,213 @@ bibliography: references.bib
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-
+# load the packages we need to use in this report
 library(tidyverse)
-library(palmerpenguins)
+library(ggplot2)
+library(lubridate)
 ```
 
 # Introduction
 
-You can and should cross-reference sections and sub-sections. For instance, Section \@ref(data). R Markdown automatically makes the sections lower case and adds a dash to spaces to generate labels, for instance, Section \@ref(first-discussion-point). 
+Shelters are built for the emergency purpose of helping meet the immediate needs of vulnerable populations who seek protection from danger. The city of Toronto offers over 7,000 emergency and transitional beds in 63 locations, and it contains the most shelter beds compared with any other Canadian city [@citeSSHA]. The administration reported that the yearly dramatic rise of demands for beds had begun since 2018. New shelter programs and the addition of extra beds were already implemented the past few years to handle the continuing increase. The Shelter, Support and Housing Administration (SSHA) has been leading and working with divisional partners to ameliorate the ongoing pressure and help construct a secure and suitable place. Toronto shelters are organized into five sectors based on the clients they serve, thus their resources and priorities are distinct [@citeTSN]. The majority of beds were used by families, and the rest are for men, women, co-ed, and youth sectors [@citeSSHA]. Noticeable, @citeTSN shows that the large proportion of homeless men and women is an aging group who needs long-term care, and these families mainly consist of refugees running from wars or poverty.
 
-
+Despite that the shelter system is meeting more challenges of occupancy every year, it encounters the biggest impact during the COVID-19 pandemic response. The @citewho declared a global outbreak of COVID-19 on March 11, 2020. The pandemic particularly hits the population that suffers from existing homelessness[@citegov]. From one aspect, Exposing to the outside environment and contact with different populations puts them at a high risk of COVID-19 without shelters. However, even the homeless are sheltered properly, they are still in a dangerous spot when the pandemic spread is not properly controlled at the shelter level [@citejakob]. More detailed aspects would be discussed in the following Section \@ref(discussion) with our Section \@ref(data) results. This report's recommendations will consider the lack of sustainability, service delivery, human resources, and emergency responses in Toronto shelter systems [@citesonja].
 
 # Data
 
-Our data is of penguins (Figure \@ref(fig:bills)).
+## Methodology and Collection
 
-```{r bills, fig.cap="Bills of penguins", echo = FALSE}
-ggplot(penguins, aes(x = island, fill = species)) +
-  geom_bar(alpha = 0.8) +
-  scale_fill_manual(values = c("darkorange","purple","cyan4"),
-                    guide = FALSE) +
-  theme_minimal() +
-  facet_wrap(~species, ncol = 1) +
-  coord_flip()
+The data published by SSHA in this report was pulled from @citeopen. I utilized R programming language [@citeR] to perform analysis of data. The packages dplyr [@citedp] and tidyverse [@citetidy] are applied for data operations and manipulations. The graphs are plotted by using the ggplot2 package [@citegg]. we also use lubridate package [@citelu] to adjust our date formats and help draw the timelines. bookdown is used to format the report [@citeb].
+
+The dateset includes a list of entire active shelters in Toronto with the names of the shelters, programs, sectors served, addresses, occupancy count, and capacity in 2020. The number of occupancies was counted in the next morning at 4 AM that for instance, the occupancy for Mar 1st would be taken on Mar 2nd at 4 AM. This secures the time interval of counts but it also possibly leads to inaccuracy if some groups are stacked to enter the shelters at a certain time. Notably, the shelters' available capacity is based on the pre-existing funding arrangements due to the pandemic situations, which may cause bias in this analysis that the actual capacity could be much lower or higher. The shelter programs included in this dataset are all under the administration of SSHA rather than other shelter programs, which provides strong validity of the data source. Additionally, the dataset has removed the violence information against women shelters for the reason of confidentiality.
+
+In this report, we decide to focus on the data in only Great Toronto Area as Figure \@ref(fig:pie-plot) indicates that the shelters in the city of Toronto have the primary number of occupancy. Several graphs and tables were created to progress our analysis by sorting the datasets in different ways. We choose to replace our exact date with month characters and combine each month's total occupancy filled by sectors, generating Figure \@ref(fig:bar-plot). For our timeline Figure \@ref(fig:line-plot), we kept the date and combine each day's total occupancy and capacity, then calculated and plotted the occupancy rate by equation:$\frac{Occupancy}{Capacity}$. Table \@ref(tab:k-table) is designed to give us an overall summary of the shelters' monthly statistics.
+
+```{r, include=FALSE}
+library(opendatatoronto)
+library(dplyr)
+ 
+# get package
+package <- show_package("8a6eceb2-821b-4961-a29d-758f3087732d")
+package
+ 
+# get all resources for this package
+resources <- list_package_resources("8a6eceb2-821b-4961-a29d-758f3087732d")
+ 
+# identify datastore resources; by default, Toronto Open Data sets datastore resource format to CSV for non-geospatial and GeoJSON for geospatial resources
+datastore_resources <- filter(resources, tolower(format) %in% c('csv', 'geojson'))
+ 
+# load the first datastore resource as a sample
+shelter <- filter(datastore_resources, row_number()==1) %>% get_resource()
+shelter
 ```
 
-Talk more about it.
 
-Also bills and their average (Figure \@ref(fig:billssssss)). (Notice how you can change the height and width so they don't take the whole page?)
+```{r, include=FALSE}
+# clean the data, convert dates to months, calculate occupancy rates
+# data frame for bar graph plot
+shelter_clean <-
+  shelter |>
+  filter(CAPACITY != 0 & OCCUPANCY != 0 & SHELTER_CITY == "Toronto") |>
+  mutate(DATE = mdy(OCCUPANCY_DATE), MONTH = month(DATE), OCCUPANCY_MONTH = 
+           case_when(
+             MONTH == 1 ~ "Jan",
+             MONTH == 2 ~ "Feb",
+             MONTH == 3 ~ "Mar",
+             MONTH == 4 ~ "Apr",
+             MONTH == 5 ~ "May",
+             MONTH == 6 ~ "June",
+             MONTH == 7 ~ "July",
+             MONTH == 8 ~ "Aug",
+             MONTH == 9 ~ "Sept",
+             MONTH == 10 ~ "Oct",
+             MONTH == 11 ~ "Nov",
+             MONTH == 12 ~ "Dec",
+           ), OCCUPANCY_RATE = round(OCCUPANCY / CAPACITY, 2)) |>
+  select(DATE, OCCUPANCY_MONTH, SECTOR, OCCUPANCY, CAPACITY, OCCUPANCY_RATE)
 
-```{r billssssss, fig.cap="More bills of penguins", echo = FALSE, fig.width=8, fig.height=4}
+# keep dates and combine data with the same dates
+# data frame for line graph
+shelter_date <-
+  shelter_clean |>
+  select(DATE, OCCUPANCY, CAPACITY) |>
+  group_by(DATE) |>
+  summarise(
+    occupancy = sum(OCCUPANCY),
+    capacity = sum(CAPACITY)
+  ) |>
+  mutate(occupancy_rate=round(occupancy/capacity, 3))
 
-# This needs to be about the random data tha tI sasmpled?
-ggplot(penguins, aes(x = island, fill = species)) +
-  geom_bar(alpha = 0.8) +
-  scale_fill_manual(values = c("darkorange","purple","cyan4"),
-                    guide = FALSE) +
-  theme_minimal() +
-  facet_wrap(~species, ncol = 1) +
-  coord_flip()
+# data frame for pie graph
+shelter_city <-
+  shelter |>
+  filter(CAPACITY != 0 & OCCUPANCY != 0) |>
+  group_by(SHELTER_CITY) |>
+  summarise(occupancy = sum(OCCUPANCY)) |>
+  select(SHELTER_CITY,occupancy) 
+
 ```
 
-Talk way more about it. 
+
+```{r pie-plot, echo=FALSE, out.height="80%", out.width="80%", fig.cap="Total number of shelter occupancy in Etobicoke, North York, Scarborough and Toronto regions", fig.align='right'}
+# plot pie graph filled by different cities
+shelter_city |>
+  ggplot(aes(x="", y=occupancy, fill=SHELTER_CITY)) +
+  geom_bar(stat="identity", width=1, color="white") +
+  coord_polar("y", start=0) +
+  theme_minimal() + # minimize graph themes for better looking
+  scale_fill_brewer(palette=1) + # change graph color
+  labs(x="", y="", fill="Shelter City") +
+  ggtitle("2020 Total Shelter Occupancy Number in Four Main Regions")
+
+```
 
 
+## Data Characteristics
 
-# Model
+By summing up the shelter occupancy counts in every month, we obtain a bar graph Figure \@(fig:bar-plot) to visualize the change of the number of occupancy in each sector. In general, it is clear that the number of shelter occupancy is dropping to almost half of the beginning number from January to December. In January 2020, the shelter occupancy reached its apex, approaching 200,000 people, and for the next two months, the number does not show a declining trend until April. The shelter occupancy was the lowest throughout the whole year at less than 100,000 counts. Besides, the families sector served in all shelters undoubtedly takes the largest proportion of occupancy, meanwhile, youth takes the smallest proportion of occupancy. The men sector has the second most occupancy among all sectors and the co-ed sector's occupancy is similar to the women sector's. This distribution of sector occupancy stays consistent for every single month.
 
-\begin{equation}
-Pr(\theta | y) = \frac{Pr(y | \theta) Pr(\theta)}{Pr(y)}  (\#eq:bayes)
-\end{equation}
+```{r bar-plot, echo=FALSE, out.height="95%", out.width="95%", fig.cap="Monthly shelter occupancy number from January to December in 2020 filled with type of sector"}
+# plot bar graph with x=months, y=occupancy filled by types of sectors
+shelter_clean |>
+  ggplot(aes(x=OCCUPANCY_MONTH, y=OCCUPANCY, fill=SECTOR)) +
+  geom_bar(position="stack", stat="identity") +
+  theme_minimal() + # minimize graph themes for better looking
+  labs(x = "Months", 
+       y = "Shelter occupancy",
+       fill = "Sector") +
+  ggtitle("Toronto Monthly Shelter Occupancies Vary Among Sectors") +
+  scale_x_discrete(limits =  c("Jan","Feb","Mar","Apr","May","June","July",
+                               "Aug","Sept","Oct","Nov","Dec")) +   #correct the order of x month
+  scale_fill_brewer(type="seq", palette=1) # change graph color
 
-Equation \@ref(eq:bayes) seems useful, eh?
+```
 
-Here's a dumb example of how to use some references: In paper we run our analysis in `R` [@citeR]. We also use the `tidyverse` which was written by @thereferencecanbewhatever If we were interested in baseball data then @citeLahman could be useful. 
+In order to better understand the trend of shelter occupancy, we create a timeline based on the occupancy rate on the same day. Figure \@ref(fig:line-plot) reveals that during the first month of 2020, the occupancy rate multiply approximates to 1.0 which means full capacity. Notably, although the total occupancy did not exceed the total capacity of all shelters in the days, there are several individual shelters that report over 1.0 occupancy rates at the start of January. Overall, the rate fluctuated significantly, and one of the dramatic decreases happened between April and July that the rate dropped by around 0.3. From July to December, the occupancy rate is still volatile that it has two sudden raises in the middle of July and in the middle of October respectively. However, the second half of the year never continues to experience a high capacity situation as the first half of the year suffers.
 
-We can use maths by including latex between dollar signs, for instance $\theta$.
+```{r line-plot, echo=FALSE, out.height="85%", out.width="85%", fig.cap="Timeline of shelters' occupancy rate change throughout the whole year 2020"}
+# plot line graph or timeline with x=date, y=occupancy rate
+shelter_date |>
+  ggplot(aes(x=DATE, y=occupancy_rate)) +
+  geom_line(colour="steel blue") +
+  theme_minimal() + # minimize graph themes for better looking
+  labs(x = "Date", 
+       y = "Occupancy Rate") +
+  ggtitle("Toronto Daily Shelter Occupancy Rates Trend")
 
+```
+
+Table \@ref(tab:k-table) delivers a direct look at the statistics summary about each month's shelter occupancy, capacity, and occupancy rate. It shows that the monthly occupancy means, capacity means, occupancy sd and capacity sd all illustrated a significant down from January to December. In January, the mean shelter occupancy was the highest with 62 counts per day, but it also reported a high standard deviation of 98, which means that number of occupancy data is highly spread on different dates. This implies that some shelters are taking much more homeless people than average or some shelters are only taking a very limited number of homeless people. A decreased standard deviation also indicates that the shelters' occupancy and capacity conditions were gradually improving with a more steady supply of shelter beds. Otherwise, another significant inconsistency compared with our previous results can be observed that the mean occupancy rate in fact stays high (0.8-1.0) for each month. The difference can be explained by the far-spread of data in different shelter locations that if we calculate each date's rate, the result varies vastly, but when we use the total number of occupancy and capacity to calculate the rate, the rate actually remains high for the entire year 2020.
 
 # Results
 
+To sum up, the Toronto shelter system has encountered its biggest challenges at the beginning of 2020 when the COVID-19 pandemic starts to explode exponentially. The shelters are definitely not prepared for such a huge impact that the shelter is highly demanded to keep the homeless population safe. The family sector is still the largest proportion of shelter occupancy, however, the youth sector was the lowest because most of the homeless belong to the aging population. The emergency responses of the shelter seem not to work properly at that time with nearly full and even exceeded capacity. It took about two months that the occupancy number and rate start to drop dramatically maybe due to the implementation of setting up new shelter places or new policies. Instead, the responses of shelter service are not great enough that while the number has dropped significantly, the occupancy rate keeps high in the following months. Additionally, the reporting capacity number was not accurate in that they used the pre-existing data, which means that the true capacity could possibly be much lower than the reported capacity in every shelter, thus the rate could be significantly higher than our results. The virus already had multiple outbreaks with distinct variants, and a high occupancy rate implies that when an outbreak happens, people who are homeless would still struggle for finding a spot to rest. There will be in-depth discussions about several aspects related to the Toronto shelter system in \@ref(discussion).
+
+```{r k-table, echo=FALSE, out.height="85%", out.width="85%"}
+# create a vector with correct month orders
+x <- c("Jan","Feb","Mar","Apr","May","June","July","Aug","Sept","Oct","Nov","Dec")
+
+# data frame designed for creating the table, calculate means and sds for all three indicators
+shelter_table <-
+  shelter_clean |>
+  select(OCCUPANCY_MONTH, OCCUPANCY, CAPACITY, OCCUPANCY_RATE) |>
+  group_by(OCCUPANCY_MONTH) |>
+  arrange(OCCUPANCY_MONTH) |>
+  summarise(
+    mean_occupancy = mean(OCCUPANCY),
+    sd_occupancy = sd(OCCUPANCY),
+    mean_capacity = mean(CAPACITY),
+    sd_capacity = sd(CAPACITY),
+    mean_rate = mean(OCCUPANCY_RATE),
+    sd_rate = sd(OCCUPANCY_RATE)) |>
+  slice(match(x, OCCUPANCY_MONTH)) # correct the months orders
+
+# create the table by kable 
+shelter_table |>
+  knitr::kable(
+    col.names = c("Month",
+                  "Occupancy Mean",
+                  "Occupancy SD",
+                  "Capacity Mean",
+                  "Capacity SD",
+                  "Rate Mean",
+                  "Rate SD"),
+    digits = 1,
+    booktabs = TRUE, # remove unnecessary bars
+    linesep = "",
+    align = c("c","c","c","c","c","c"), # center the columns
+    caption = "Toronto monthly shelter occupancy, capacity and occupancy rate summary in 2020"
+    )
+
+
+```
+\newpage
+
 # Discussion
 
-## First discussion point
+While the city of Toronto continually provides safe inside space for people who live outside, the fact is there are at least 9,916 homeless people at the end of January 2020, and the available space in the shelter system is only 6,632 [@citec]. This indicates that there are at least 3,000 homeless people can not get access to shelter protection overnight. Also, the shelters' capacity could be overestimated since the data was uploaded based on pre-existing space in the funding program, therefore the situation for homeless people could be much worse than expected. Furthermore, although the daily occupancy rate is decreasing rapidly after April according to our \@ref(data), the monthly rate is consistently high during the year. This could imply that the COVID-19 still has a significantly continuous impact on the Toronto shelter system. And during the interval between October 2020 and February 2021, at least 13,780 callers' requests were rejected because there was no space available in the shelter system [@citec]. It proves that the severe shortage of shelter space caused by pandemics kept developing without effective interventions. The impact on the Toronto shelter system is likely to attribute to COVID-19's transmission at the shelter level. There are also considerations for the system's responses, mitigating the impact.
 
-If my paper were 10 pages, then should be be at least 2.5 pages. The discussion is a chance to show off what you know and what you learnt from all this. 
+## Prevalence of COVID-19 at Shelter-level
 
-## Second discussion point
+Probably, there is a misunderstanding that the unsheltered population is more vulnerable to the virus than the sheltered as they are exposed to public space, but recent research has discovered that the prevalence of COVID-19 could be higher among those sheltered people. They conducted an analysis in the epicenter of the COVID-19 crisis in New York and found that age-adjusted mortality is the highest among homeless people in clustered shelters [@citerou]. It is ironic that people who are experiencing homelessness are desperately looking for a sheltered spot for safety concerns which turns out to put them at a higher risk of infecting the virus. It is also not surprising about the high prevalence in the shelters because for example, in a main hotel shelter program, hundreds of people are flowing in and out in a couple of days and no isolation protocol was taken. It is difficult for the shelter staff to maintain a safe living community. Even at the best time, people in the shelters can experience threats like physical violence, contracting other diseases, and overdosing. Therefore, a finding has revealed that sheltered people are five times more likely to die after contracting COVID-19 [@citeri]. In addition, the vaccination among shelters varies largely, contributing to the unpleasant conditions in shelters.
 
-## Third discussion point
+## Responses and Strategies
+
+The shelter system had undertaken significant changes during the pandemic as the large-scale housing would be hard to operate with concerns of diminishing beds available to control the spread of the virus. Despite that there are lots of obstacles, the shelters can take some practices to regulate the place with low infection rates. Firstly, complying with social distancing regulations can mitigate the spread since the beds in the shelter could be really close to each other. Dividing the bedding area into individual sections can help improve the situation. Yet, this may not effectively decrease the infection rate even the social distancing regulations are followed. More importantly, the systems should provide Personal Protective Equipment (PPE) which is the first line of defending the virus. Secondly, the cleaning practices should comply that a disinfected area for dining and showering, and all the areas should be fully sterilized on a daily basis. While the bed spots in shelters are reduced, many cities are converting the unused public space into makeshift shelters to provide essential needs for the homeless [@citejakob]
+
+A strict and proper response to COVID-19 in the shelter could prevent the occupancy pressure in Toronto. As we realize the severity in shelter occupancy has consistently remained high since the outbreaks, the government should have implemented active and mandatory strategies to the shelter system.
+
+## Youth Sector
+
+From Figure \@(fig:bar-plot), the youth sector is the smallest portion among all types of sectors. Indeed, there is more aging population looking for shelter beds. Most youth homelessness refers to the young population between 13 and 24 age, and they are independent of their caregivers [@citeho]. The transition from childhood to adulthood is vital that they require social support without a stable source of income. Given one year, around 35,000 to 40,000 youth are experiencing homelessness, and 20% of the homeless in Canada are youth population [@citena]. Homeless youth are distinct from impact adults in that they lack the skills and experiences necessary to make a living. And family conflicts are a primary cause of many youth homeless. Therefore, the youth sector may need extra attention to their emotional, physical and mental development, especially during a pandemic. Due to social distancing and some isolation procedures, they may spend more time staying alone. The shelters with the youth sector should consistently provide programs like skills training, school-based intervention, or family reconnection to make healthy transitions to adulthood.
+
 
 ## Weaknesses and next steps
 
-Weaknesses and next steps should also be included.
+This report solely includes the daily shelter occupancy in the year 2020 when the COVID starts to outbreak worldwide. The capacity count of the Toronto shelter system was not accurate for us to realize how bad it was. A more severe condition is assumed to continuously occur in Toronto shelter occupancy. Based on the feedback from the public, the fact is that many callers for shelter protection are not able to find available space in the system. Further studies should focus on the occupancy rate in the most recent years to analyze whether the situation has made an improvement or not. Also, since the outbreak starts again with a new virus variant, the research can explore the actual response and strategies taken in the shelter system compared with what they implemented two years ago. Under such circumstances, the study can investigate the service delivery for the youth sector that needs more attention than adults. 
+
+Overall, the Toronto shelter system has undertaken the biggest challenges of COVID-19. The first priority for the homeless population is to solve the occupancy issues and provide reliable service for the people with immediate needs, contributing to building a healthy and safe living community in the shelters.
 
 \newpage
-
-\appendix
-
-# Appendix {-}
-
-
-# Additional details
-
-
-\newpage
-
 
 # References
-
-git commit -m update
-asdncjsidfi
